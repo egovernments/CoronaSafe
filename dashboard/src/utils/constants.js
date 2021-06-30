@@ -1,9 +1,12 @@
 // Activated Districts
 export const ACTIVATED_DISTRICTS = [
-  { id: 7, name: "Ernakulam", lat: 10.148_547_6, lng: 76.500_752_4, zoom: 10 },
+  { id: 15, name: "Adilabad", lat: 19.675_945_2, lng: 78.533_989_5, zoom: 13 },
+  { id: 16, name: "Mancherial", lat: 18.876_179_5, lng: 79.444_969_6, zoom: 13 },
+  { id: 17, name: "Nirmal", lat: 19.092_174_9, lng: 78.348_872_5, zoom: 13 },
+  { id: 19, name: "Nizamabad", lat: 18.673_269_3, lng: 78.097_847_7, zoom: 13 },
 ];
 
-export const GMAP_KEY = "AIzaSyDsBAc3y7deI5ZO3NtK5GuzKwtUzQNJNUk";
+export const GMAP_KEY = "AIzaSyADqpKqZOggMr33usQvZ5hml3tyWZ6SCMc";
 
 export const AVAILABILITY_TYPES_ORDERED = [
   1, 150, 10, 20, 30, 120, 110, 100, 40, 60, 50, 70,

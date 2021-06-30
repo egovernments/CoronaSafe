@@ -1,0 +1,40 @@
+# build-config.yml
+# config:
+# -   name: < Name of the job, foo/bar would create job named bar inside folder foo > 
+#     build:
+#     - work-dir: < Working directory of the app to be built >
+#       dockerfile: < Path to the dockerfile, optional, assumes dockerfile in working directory if not provided >
+#       image-name: < Docker image name  >
+# -
+# -
+
+config:
+-   name: builds/CoronaSafe/care
+    build:
+    - work-dir: care/
+      dockerfile: care/Dockerfile
+      image-name: care
+      
+-   name: builds/CoronaSafe/care_celery_beat
+    build:
+    - work-dir: care/
+      dockerfile: care/Dockerfile_Celery_Beat
+      image-name: care-celery-beat
+
+-   name: builds/CoronaSafe/care_celery_worker
+    build:
+    - work-dir: care/
+      dockerfile: care/Dockerfile_Celery_Worker
+      image-name: care-celery-worker
+
+-   name: builds/CoronaSafe/care_fe
+    build:
+    - work-dir: care_fe/
+      dockerfile: care_fe/Dockerfile
+      image-name: care-frontend     
+
+-   name: builds/CoronaSafe/dashboard
+    build:
+    - work-dir: dashboard/
+      dockerfile: dashboard/Dockerfile
+      image-name: care-dashboard

@@ -446,7 +446,7 @@ const AppRouter = (props: any) => {
                   <NotificationsList />
                   <a
                     key="dashboard"
-                    href="http://dashboard.coronasafe.network/"
+                    href="https://coronasafe-dashboard.digit.org/"
                     className="mt-2 group flex w-full items-center px-2 py-2 text-base leading-5 font-medium text-primary-300 rounded-md hover:text-white hover:bg-primary-700 focus:outline-none focus:bg-primary-900 transition ease-in-out duration-150"
                   >
                     <i className="fas fa-tachometer-alt text-primary-400 mr-3 text-md group-hover:text-primary-300 group-focus:text-primary-300 transition ease-in-out duration-150"></i>

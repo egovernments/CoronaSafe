@@ -10,4 +10,4 @@ COPY ${WORK_DIR} /app
 WORKDIR /app
 
 EXPOSE 9000
-CMD ["/start"]
+CMD ["/bin/bash", "-c", "--","/app/celery_beat.sh"]

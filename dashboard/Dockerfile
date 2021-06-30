@@ -1,9 +1,10 @@
 #build-stage
 FROM node:lts-buster-slim as build-stage
+ARG WORK_DIR
 WORKDIR /app
-COPY package*.json ./
+COPY ${WORK_DIR}/package*.json ./
 RUN npm install
-COPY . .
+COPY ${WORK_DIR} .
 RUN npm run build
 
 #production-stage
