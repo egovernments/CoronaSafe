@@ -1,0 +1,845 @@
+import loadable from "@loadable/component";
+import Box from "@material-ui/core/Box";
+import Button from "@material-ui/core/Button";
+import Grid from "@material-ui/core/Grid";
+import { makeStyles, Theme, useTheme } from "@material-ui/core/styles";
+import Typography from "@material-ui/core/Typography";
+import ArrowDownwardIcon from "@material-ui/icons/ArrowDownward";
+import { navigate, useQueryParams } from "raviger";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import moment from "moment";
+import React, { useEffect, useState, useCallback } from "react";
+import { CSVLink } from "react-csv";
+import { useDispatch } from "react-redux";
+import SwipeableViews from "react-swipeable-views";
+import {
+  getAllPatient,
+  getDistrict,
+  getLocalBody,
+  getFacility,
+} from "../../Redux/actions";
+import { PhoneNumberField } from "../Common/HelperInputFields";
+import NavTabs from "../Common/NavTabs";
+import Pagination from "../Common/Pagination";
+import { InputSearchBox } from "../Common/SearchBox";
+import {
+  ADMITTED_TO,
+  GENDER_TYPES,
+  TELEMEDICINE_ACTIONS,
+  PATIENT_FILTER_ADMITTED_TO,
+} from "../../Common/constants";
+import { make as SlideOver } from "../Common/SlideOver.gen";
+import PatientFilterV2 from "./PatientFilterV2";
+import { parseOptionId } from "../../Common/utils";
+import { statusType, useAbortableEffect } from "../../Common/utils";
+
+const Loading = loadable(() => import("../Common/Loading"));
+const PageTitle = loadable(() => import("../Common/PageTitle"));
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  dir?: string;
+  index: any;
+  value: any;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`full-width-tabpanel-${index}`}
+      aria-labelledby={`full-width-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box p={3}>
+          <Typography>{children}</Typography>
+        </Box>
+      )}
+    </div>
+  );
+}
+
+export function Badge(props: { color: string; icon: string; text: string }) {
+  return (
+    <span
+      className="m-1 inline-flex items-center px-3 py-1 rounded-full text-xs font-medium leading-4 bg-gray-100 text-gray-700"
+      title={props.text}
+    >
+      <i
+        className={
+          "mr-2 text-md text-" + props.color + "-500 fas fa-" + props.icon
+        }
+      ></i>
+      {props.text}
+    </span>
+  );
+}
+
+const useStylesTab = makeStyles((theme: Theme) => ({
+  root: {
+    flexGrow: 1,
+    backgroundColor: theme.palette.background.paper,
+  },
+}));
+
+const now = moment().format("DD-MM-YYYY:hh:mm:ss");
+
+const useStyles = makeStyles((theme) => ({
+  paginateTopPadding: {
+    paddingTop: "50px",
+  },
+  displayFlex: {
+    display: "flex",
+  },
+}));
+
+const RESULT_LIMIT = 14;
+
+export const PatientManager = (props: any) => {
+  const { facilityId } = props;
+  const classes = useStyles();
+  const classesTab = useStylesTab();
+  const theme = useTheme();
+  const dispatch: any = useDispatch();
+
+  const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [DownloadFile, setDownloadFile] = useState("");
+  const [qParams, setQueryParams] = useQueryParams();
+  const [showFilters, setShowFilters] = useState(false);
+
+  const [districtName, setDistrictName] = useState("");
+  const [localbodyName, setLocalbodyName] = useState("");
+  const [facilityName, setFacilityName] = useState("");
+
+  const tabValue = qParams.is_active === "False" ? 1 : 0;
+
+  const params = {
+    page: qParams.page || 1,
+    name: qParams.name || undefined,
+    is_active: qParams.is_active || "True",
+    disease_status: qParams.disease_status || undefined,
+    phone_number: qParams.phone_number
+      ? parsePhoneNumberFromString(qParams.phone_number)?.format("E.164")
+      : undefined,
+    emergency_phone_number: qParams.emergency_phone_number
+      ? parsePhoneNumberFromString(qParams.emergency_phone_number)?.format(
+          "E.164"
+        )
+      : undefined,
+    local_body: qParams.lsgBody || undefined,
+    facility: facilityId || qParams.facility,
+    district: qParams.district || undefined,
+    offset: (qParams.page ? qParams.page - 1 : 0) * RESULT_LIMIT,
+    created_date_before: qParams.created_date_before || undefined,
+    created_date_after: qParams.created_date_after || undefined,
+    modified_date_before: qParams.modified_date_before || undefined,
+    modified_date_after: qParams.modified_date_after || undefined,
+    ordering: qParams.ordering || undefined,
+    category: qParams.category || undefined,
+    gender: qParams.gender || undefined,
+    age_min: qParams.age_min || undefined,
+    age_max: qParams.age_max || undefined,
+    date_declared_positive_before:
+      qParams.date_declared_positive_before || undefined,
+    date_declared_positive_after:
+      qParams.date_declared_positive_after || undefined,
+    date_of_result_before: qParams.date_of_result_before || undefined,
+    date_of_result_after: qParams.date_of_result_after || undefined,
+    last_consultation_admission_date_before:
+      qParams.last_consultation_admission_date_before || undefined,
+    last_consultation_admission_date_after:
+      qParams.last_consultation_admission_date_after || undefined,
+    last_consultation_discharge_date_before:
+      qParams.last_consultation_discharge_date_before || undefined,
+    last_consultation_discharge_date_after:
+      qParams.last_consultation_discharge_date_after || undefined,
+    last_consultation_admitted_to_list:
+      qParams.last_consultation_admitted_to_list || undefined,
+    srf_id: qParams.srf_id || undefined,
+    number_of_doses: qParams.number_of_doses || undefined,
+    covin_id: qParams.covin_id || undefined,
+    is_kasp: qParams.is_kasp || undefined,
+    is_declared_positive: qParams.is_declared_positive || undefined,
+    last_consultation_symptoms_onset_date_before:
+      qParams.last_consultation_symptoms_onset_date_before || undefined,
+    last_consultation_symptoms_onset_date_after:
+      qParams.last_consultation_symptoms_onset_date_after || undefined,
+    last_consultation_is_telemedicine:
+      qParams.last_consultation_is_telemedicine || undefined,
+  };
+
+  let managePatients: any = null;
+  const handleDownload = async (isFiltered: boolean) => {
+    const res = await dispatch(
+      getAllPatient(
+        {
+          ...params,
+          csv: true,
+          facility: facilityId,
+        },
+        "downloadPatients"
+      )
+    );
+    if (res && res.data) {
+      setDownloadFile(res.data);
+      document.getElementById("downloadlink")?.click();
+    }
+  };
+  const handleDownloadAll = async () => {
+    await handleDownload(false);
+  };
+  const handleDownloadFiltered = async () => {
+    await handleDownload(true);
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    dispatch(getAllPatient(params, "listPatients"))
+      .then((res: any) => {
+        if (res && res.data) {
+          setData(res.data.results);
+          setTotalCount(res.data.count);
+        }
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setIsLoading(false);
+      });
+  }, [
+    dispatch,
+    facilityId,
+    qParams.last_consultation_admission_date_before,
+    qParams.last_consultation_admission_date_after,
+    qParams.last_consultation_discharge_date_before,
+    qParams.last_consultation_discharge_date_after,
+    qParams.age_max,
+    qParams.age_min,
+    qParams.last_consultation_admitted_to_list,
+    qParams.facility,
+    qParams.district,
+    qParams.category,
+    qParams.gender,
+    qParams.ordering,
+    qParams.created_date_before,
+    qParams.created_date_after,
+    qParams.modified_date_before,
+    qParams.modified_date_after,
+    qParams.is_active,
+    qParams.disease_status,
+    qParams.name,
+    qParams.page,
+    qParams.phone_number,
+    qParams.emergency_phone_number,
+    qParams.srf_id,
+    qParams.covin_id,
+    qParams.number_of_doses,
+    qParams.lsgBody,
+    qParams.is_kasp,
+    qParams.is_declared_positive,
+    qParams.date_declared_positive_before,
+    qParams.date_declared_positive_after,
+    qParams.date_of_result_before,
+    qParams.date_of_result_after,
+    qParams.last_consultation_symptoms_onset_date_before,
+    qParams.last_consultation_symptoms_onset_date_after,
+    qParams.last_consultation_is_telemedicine,
+  ]);
+
+  const fetchDistrictName = useCallback(
+    async (status: statusType) => {
+      setIsLoading(true);
+      const res =
+        Number(qParams.district) &&
+        (await dispatch(getDistrict(qParams.district)));
+      if (!status.aborted) {
+        setDistrictName(res?.data?.name);
+        setIsLoading(false);
+      }
+    },
+    [dispatch, qParams.district]
+  );
+
+  useAbortableEffect(
+    (status: statusType) => {
+      fetchDistrictName(status);
+    },
+    [fetchDistrictName]
+  );
+
+  const fetchLocalbodyName = useCallback(
+    async (status: statusType) => {
+      setIsLoading(true);
+      const res =
+        Number(qParams.lsgBody) &&
+        (await dispatch(getLocalBody({ id: qParams.lsgBody })));
+      if (!status.aborted) {
+        setLocalbodyName(res?.data?.name);
+        setIsLoading(false);
+      }
+    },
+    [dispatch, qParams.lsgBody]
+  );
+
+  useAbortableEffect(
+    (status: statusType) => {
+      fetchLocalbodyName(status);
+    },
+    [fetchLocalbodyName]
+  );
+
+  const fetchFacilityName = useCallback(
+    async (status: statusType) => {
+      setIsLoading(true);
+      const res =
+        qParams.facility && (await dispatch(getFacility(qParams.facility)));
+      if (!status.aborted) {
+        setFacilityName(res?.data?.name);
+        setIsLoading(false);
+      }
+    },
+    [dispatch, qParams.facility]
+  );
+
+  useAbortableEffect(
+    (status: statusType) => {
+      fetchFacilityName(status);
+    },
+    [fetchFacilityName]
+  );
+
+  const updateQuery = (params: any) => {
+    const nParams = Object.assign({}, qParams, params);
+    setQueryParams(nParams, true);
+  };
+
+  const handleTabChange = async (tab: number) => {
+    updateQuery({
+      ...qParams,
+      is_active: tab ? "False" : "True",
+      page: 1,
+    });
+  };
+
+  const handlePagination = (page: number, limit: number) => {
+    updateQuery({ page, limit });
+  };
+
+  const searchByName = (value: string) => {
+    updateQuery({ name: value, page: 1 });
+  };
+
+  const searchByPhone = (value: string, name: string) => {
+    updateQuery({ [name]: value, page: 1 });
+  };
+
+  const handleFilter = (value: string) => {
+    updateQuery({ disease_status: value, page: 1 });
+  };
+
+  const applyFilter = (data: any) => {
+    const filter = { ...qParams, ...data };
+    updateQuery(filter);
+    setShowFilters(false);
+  };
+  const removeFilter = (paramKey: any) => {
+    updateQuery({
+      ...qParams,
+      [paramKey]: "",
+    });
+  };
+
+  const badge = (key: string, value: any, paramKey: string) => {
+    return (
+      value && (
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium leading-4 bg-white text-gray-600 border">
+          {key}
+          {": "}
+          {value}
+          <i
+            className="fas fa-times ml-2 rounded-full cursor-pointer hover:bg-gray-500 px-1 py-0.5"
+            onClick={(e) => removeFilter(paramKey)}
+          ></i>
+        </span>
+      )
+    );
+  };
+
+  const LastAdmittedToTypeBadges = () => {
+    const badge = (key: string, value: any, id: string) => {
+      return (
+        value && (
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium leading-4 bg-white text-gray-600 border">
+            {key}
+            {": "}
+            {value}
+            <i
+              className="fas fa-times ml-2 rounded-full cursor-pointer hover:bg-gray-500 px-1 py-0.5"
+              onClick={(_) => {
+                const lcat = qParams.last_consultation_admitted_to_list
+                  .split(",")
+                  .filter((x: string) => x != id)
+                  .join(",");
+                updateQuery({
+                  ...qParams,
+                  last_consultation_admitted_to_list: lcat,
+                });
+              }}
+            ></i>
+          </span>
+        )
+      );
+    };
+
+    return qParams.last_consultation_admitted_to_list
+      .split(",")
+      .map((id: string) => {
+        const text = PATIENT_FILTER_ADMITTED_TO.find(
+          (obj) => obj.id == id
+        )?.text;
+        return badge("Bed Type", text, id);
+      });
+  };
+
+  let patientList: any[] = [];
+  if (data && data.length) {
+    patientList = data.map((patient: any, idx: number) => {
+      const patientUrl = patient.facility
+        ? `/facility/${patient.facility}/patient/${patient.id}`
+        : `/patient/${patient.id}`;
+      return (
+        <div
+          key={`usr_${patient.id}`}
+          onClick={() => navigate(patientUrl)}
+          className={
+            "w-full pb-2 cursor-pointer border-b md:flex justify-between items-center mb-3 " +
+            (patient.disease_status == "POSITIVE" ? "bg-red-50" : "")
+          }
+        >
+          <div className="px-4 md:w-1/2">
+            <div className="md:flex justify-between w-full">
+              <div className="text-xl font-normal capitalize">
+                {patient.name} - {patient.age}
+                {patient.action && patient.action != 10 && (
+                  <span className="font-semibold ml-2">
+                    -{" "}
+                    {
+                      TELEMEDICINE_ACTIONS.find((i) => i.id === patient.action)
+                        ?.desc
+                    }
+                  </span>
+                )}
+              </div>
+            </div>
+            {patient.facility_object && (
+              <div className="font-normal text-sm">
+                {patient.facility_object.name},
+                <span className="text-xs ml-2">
+                  Updated at: {moment(patient.modified_date).format("lll")}
+                </span>
+                {patient.review_time && (
+                  <span
+                    className={
+                      "m-1 inline-flex items-center px-3 py-1 rounded-full text-xs leading-4 font-semibold " +
+                      (moment().isBefore(patient.review_time)
+                        ? " bg-gray-100"
+                        : "rounded p-1 bg-red-400 text-white")
+                    }
+                  >
+                    <i className="mr-2 text-md fas fa-clock"></i>
+                    {(moment().isBefore(patient.review_time)
+                      ? "Review at: "
+                      : "Review Missed: ") +
+                      moment(patient.review_time).format("lll")}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="md:flex">
+            <div className="md:flex flex-wrap justify-end">
+              {patient.allow_transfer ? (
+                <Badge color="yellow" icon="unlock" text="Transfer Allowed" />
+              ) : (
+                <Badge color="primary" icon="lock" text="Transfer Blocked" />
+              )}
+              {patient.disease_status === "POSITIVE" && (
+                <Badge color="red" icon="radiation" text="Positive" />
+              )}
+              {["NEGATIVE", "RECOVERED"].indexOf(patient.disease_status) >=
+                0 && (
+                <Badge
+                  color="primary"
+                  icon="smile-beam"
+                  text={patient.disease_status}
+                />
+              )}
+              {patient.is_antenatal && patient.is_active && (
+                <Badge color="blue" icon="baby-carriage" text="Antenatal" />
+              )}
+              {patient.is_medical_worker && patient.is_active && (
+                <Badge color="blue" icon="user-md" text="Medical Worker" />
+              )}
+              {patient.contact_with_confirmed_carrier && (
+                <Badge
+                  color="red"
+                  icon="exclamation-triangle"
+                  text="Contact with confirmed carrier"
+                />
+              )}
+              {patient.contact_with_suspected_carrier && (
+                <Badge
+                  color="yellow"
+                  icon="exclamation-triangle"
+                  text="Contact with suspected carrier"
+                />
+              )}
+              {patient.disease_status === "EXPIRED" && (
+                <Badge
+                  color="yellow"
+                  icon="exclamation-triangle"
+                  text="Patient Expired"
+                />
+              )}
+              {(!patient.last_consultation ||
+                patient.last_consultation?.facility !== patient.facility) && (
+                <span className="relative inline-flex">
+                  <Badge
+                    color="red"
+                    icon="notes-medical"
+                    text="No Consultation Filed"
+                  />
+                  <span className="flex absolute h-3 w-3 top-0 right-0 -mt-1 -mr-1">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-600"></span>
+                  </span>
+                </span>
+              )}
+            </div>
+            <div className="px-2">
+              <div className="btn btn-default bg-white">Details</div>
+            </div>
+          </div>
+        </div>
+      );
+    });
+  }
+
+  if (isLoading || !data) {
+    managePatients = <Loading />;
+  } else if (data && data.length) {
+    managePatients = (
+      <>
+        {patientList}
+        {totalCount > RESULT_LIMIT && (
+          <div className="mt-4 flex w-full justify-center">
+            <Pagination
+              cPage={qParams.page}
+              defaultPerPage={RESULT_LIMIT}
+              data={{ totalCount }}
+              onChange={handlePagination}
+            />
+          </div>
+        )}
+      </>
+    );
+  } else if (data && data.length === 0) {
+    managePatients = (
+      <Grid item xs={12} md={12} className={classes.displayFlex}>
+        <Grid container justify="center" alignItems="center">
+          <h5> No Patients Found</h5>
+        </Grid>
+      </Grid>
+    );
+  }
+
+  return (
+    <div className="px-6">
+      <PageTitle title="Patients" hideBack={!facilityId} className="mt-4" />
+      <div className="mt-5 md:grid grid-cols-1 gap-5 sm:grid-cols-3 my-4 px-2 md:px-0 relative">
+        <div className="title-text flex align-center">
+          <div>
+            <Button
+              color="primary"
+              size="small"
+              onClick={handleDownloadFiltered}
+              startIcon={<ArrowDownwardIcon>download</ArrowDownwardIcon>}
+            >
+              Download {tabValue === 0 ? "Live" : "Discharged"} List
+            </Button>
+            <CSVLink
+              id="downloadlink"
+              className="hidden"
+              data={DownloadFile}
+              filename={`patients-${now}.csv`}
+              target="_blank"
+            ></CSVLink>
+          </div>
+          <Button
+            color="primary"
+            onClick={handleDownloadAll}
+            size="small"
+            startIcon={<ArrowDownwardIcon>download</ArrowDownwardIcon>}
+          >
+            Download All Patients
+          </Button>
+        </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <dl>
+              <dt className="text-sm leading-5 font-medium text-gray-500 truncate">
+                Total Patients
+              </dt>
+              <dd className="mt-4 text-5xl leading-9 font-semibold text-gray-900">
+                {totalCount}
+              </dd>
+            </dl>
+          </div>
+        </div>
+        <div>
+          <div>
+            <div className="text-sm font-semibold mb-2">Search by Name</div>
+            <InputSearchBox
+              search={searchByName}
+              value={qParams.name}
+              placeholder="Search by Patient Name"
+              errors=""
+            />
+          </div>
+          <div>
+            <div className="text-sm font-semibold mt-2">
+              Search by Primary Number
+            </div>
+            <PhoneNumberField
+              value={qParams.phone_number}
+              onChange={(value: string) => searchByPhone(value, "phone_number")}
+              turnOffAutoFormat={false}
+              errors=""
+            />
+          </div>
+        </div>
+        <div>
+          <div>
+            <div className="flex items-start mb-2">
+              <button
+                className="btn btn-primary-ghost md:mt-7 "
+                onClick={(_) => setShowFilters((show) => !show)}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="fill-current w-4 h-4 mr-2"
+                >
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12">
+                    {" "}
+                  </line>
+                  <line x1="8" y1="18" x2="21" y2="18">
+                    {" "}
+                  </line>
+                  <line x1="3" y1="6" x2="3.01" y2="6">
+                    {" "}
+                  </line>
+                  <line x1="3" y1="12" x2="3.01" y2="12">
+                    {" "}
+                  </line>
+                  <line x1="3" y1="18" x2="3.01" y2="18">
+                    {" "}
+                  </line>
+                </svg>
+                <span>Advanced Filters</span>
+              </button>
+            </div>
+          </div>
+          <div>
+            <div className="text-sm font-semibold mt-2">
+              Search by Emergency Number
+            </div>
+            <PhoneNumberField
+              value={qParams.emergency_phone_number}
+              onChange={(value: string) =>
+                searchByPhone(value, "emergency_phone_number")
+              }
+              turnOffAutoFormat={false}
+              errors=""
+            />
+          </div>
+        </div>
+        <div className="flex space-x-2 mt-2 flex-wrap w-full col-span-3 space-y-1">
+          {qParams.phone_number?.trim().split(" ").length - 1
+            ? badge("Primary Number", qParams.phone_number, "phone_number")
+            : null}
+          {qParams.emergency_phone_number?.trim().split(" ").length - 1
+            ? badge(
+                "Emergency Number",
+                qParams.emergency_phone_number,
+                "emergency_phone_number"
+              )
+            : null}
+          {badge("Patient Name", qParams.name, "name")}
+          {badge(
+            "Modified After",
+            qParams.modified_date_after,
+            "modified_date_after"
+          )}
+          {badge(
+            "Modified Before",
+            qParams.modified_date_before,
+            "modified_date_before"
+          )}
+          {badge(
+            "Created Before",
+            qParams.created_date_before,
+            "created_date_before"
+          )}
+          {badge(
+            "Created After",
+            qParams.created_date_after,
+            "created_date_after"
+          )}
+          {badge(
+            "Admitted Before",
+            qParams.last_consultation_admission_date_before,
+            "last_consultation_admission_date_before"
+          )}
+          {badge(
+            "Admitted After",
+            qParams.last_consultation_admission_date_after,
+            "last_consultation_admission_date_after"
+          )}
+          {badge(
+            "Discharged Before",
+            qParams.last_consultation_discharge_date_before,
+            "last_consultation_discharge_date_before"
+          )}
+          {badge(
+            "Discharged After",
+            qParams.last_consultation_discharge_date_after,
+            "last_consultation_discharge_date_after"
+          )}
+          {qParams.last_consultation_admitted_to_list &&
+            LastAdmittedToTypeBadges()}
+          {qParams.number_of_doses &&
+            badge(
+              "Number of Vaccination Doses",
+              qParams.number_of_doses,
+              "number_of_doses"
+            )}
+          {qParams.is_kasp &&
+            badge(
+              "KASP",
+              qParams.is_kasp === "true" ? "KASP" : "Non KASP",
+              "is_kasp"
+            )}
+          {badge("COVIN ID", qParams.covin_id, "covin_id")}
+
+          {badge("Facility", facilityName, "facility")}
+          {badge("District", districtName, "district")}
+          {badge("Ordering", qParams.ordering, "ordering")}
+          {badge("Category", qParams.category, "category")}
+          {badge("Disease Status", qParams.disease_status, "disease_status")}
+          {badge(
+            "Gender",
+            parseOptionId(GENDER_TYPES, qParams.gender),
+            "gender"
+          )}
+          {badge(
+            "Admitted to",
+            ADMITTED_TO[qParams.last_consultation_admitted_to],
+            "last_consultation_admitted_to"
+          )}
+          {badge("Age min", qParams.age_min, "age_min")}
+          {badge("Age max", qParams.age_max, "age_max")}
+          {badge("SRF ID", qParams.srf_id, "srf_id")}
+          {badge("LSG Body", localbodyName, "lsgBody")}
+          {badge(
+            "Declared Status",
+            qParams.is_declared_positive,
+            "is_declared_positive"
+          )}
+          {badge(
+            "Result before",
+            qParams.date_of_result_before,
+            "date_of_result_before"
+          )}
+          {badge(
+            "Result after",
+            qParams.date_of_result_after,
+            "date_of_result_after"
+          )}
+
+          {badge(
+            "Declared positive before",
+            qParams.date_declared_positive_before,
+            "date_declared_positive_before"
+          )}
+
+          {badge(
+            "Declared positive after",
+            qParams.date_declared_positive_after,
+            "date_declared_positive_after"
+          )}
+
+          {badge(
+            "Onset of symptoms before",
+            qParams.last_consultation_symptoms_onset_date_before,
+            "last_consultation_symptoms_onset_date_before"
+          )}
+
+          {badge(
+            "Onset of symptoms after",
+            qParams.last_consultation_symptoms_onset_date_after,
+            "last_consultation_symptoms_onset_date_after"
+          )}
+          {badge(
+            "Telemedicine",
+            qParams.last_consultation_is_telemedicine,
+            "last_consultation_is_telemedicine"
+          )}
+        </div>
+      </div>
+      <div className={classesTab.root}>
+        <SlideOver show={showFilters} setShow={setShowFilters}>
+          <div className="bg-white min-h-screen p-4">
+            <PatientFilterV2
+              filter={qParams}
+              onChange={applyFilter}
+              closeFilter={() => setShowFilters(false)}
+            />
+          </div>
+        </SlideOver>
+        <NavTabs
+          onChange={handleTabChange}
+          options={[
+            { value: 0, label: "Live" },
+            { value: 1, label: "Discharged" },
+          ]}
+          active={tabValue}
+        />
+        <SwipeableViews
+          axis={theme.direction === "rtl" ? "x-reverse" : "x"}
+          index={tabValue}
+        >
+          <TabPanel value={tabValue} index={0} dir={theme.direction}>
+            <div className="flex flex-wrap md:-mx-4">{managePatients}</div>
+          </TabPanel>
+          <TabPanel value={tabValue} index={1} dir={theme.direction}>
+            <div className="flex flex-wrap md:-mx-4">{managePatients}</div>
+          </TabPanel>
+        </SwipeableViews>
+      </div>
+    </div>
+  );
+};
