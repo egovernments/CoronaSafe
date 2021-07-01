@@ -4,6 +4,7 @@ export const ACTIVATED_DISTRICTS = [
   { id: 16, name: "Mancherial", lat: 18.876_179_5, lng: 79.444_969_6, zoom: 13 },
   { id: 17, name: "Nirmal", lat: 19.092_174_9, lng: 78.348_872_5, zoom: 13 },
   { id: 19, name: "Nizamabad", lat: 18.673_269_3, lng: 78.097_847_7, zoom: 13 },
+  { id: 26, name: "Narayanpet", lat: 16.744_511, lng: 77.496_010, zoom: 13 },
 ];
 
 export const GMAP_KEY = "AIzaSyADqpKqZOggMr33usQvZ5hml3tyWZ6SCMc";
