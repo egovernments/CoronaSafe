@@ -91,7 +91,7 @@
     "react-phone-input-2": "^2.14.0",
     "react-qr-reader": "^2.2.1",
     "react-redux": "^7.2.4",
-    "react-scripts": "^4.0.3",
+    "react-scripts": "^5.0.0",
     "react-swipeable-views": "^0.13.9",
     "react-transition-group": "^4.4.1",
     "react-virtualized": "^9.22.3",
