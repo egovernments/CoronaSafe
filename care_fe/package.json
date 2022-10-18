@@ -59,7 +59,7 @@
     "@types/react-virtualized": "^9.21.11",
     "axios": "^0.21.1",
     "bs-webapi": "^0.19.0",
-    "clean-webpack-plugin": "^4.0.0-alpha.0",
+    "clean-webpack-plugin": "^4.0.0",
     "cross-env": "^7.0.3",
     "css-loader": "^5.2.6",
     "cypress": "^7.5.0",
